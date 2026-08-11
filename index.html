@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Kelime Üstadı</title>
 
+    <!-- ══ PWA ══ -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#6C5CE7">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Kelime Üstadı">
+    <link rel="apple-touch-icon" href="logo.png">
+
     <!-- Kelime veritabanları kategori seçiminden sonra dinamik olarak yüklenir -->
     <script>window.DB = {};</script>
 
@@ -950,6 +959,9 @@
             </div>
             <div class="cat-tab" data-tab="backup" onclick="switchCatTab('backup')">
                 <span class="cat-tab-emoji">💾</span><span class="cat-tab-label">Kaydet</span>
+            </div>
+            <div class="cat-tab" id="install-tab" onclick="installApp()">
+                <span class="cat-tab-emoji">📲</span><span class="cat-tab-label">İndir</span>
             </div>
         </div>
 
@@ -2529,6 +2541,72 @@
                 }).observe(modal, { attributes: true });
             }
         });
+    })();
+    </script>
+
+    <!-- ── PWA: Service Worker Kaydı + Uygulama İndir Butonu ── -->
+    <script>
+    (function() {
+        var deferredPrompt = null;
+        var installBtn = document.getElementById('install-tab');
+
+        // Service worker kaydı
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('sw.js').catch(function(err) {
+                    console.warn('Service worker kaydı başarısız:', err);
+                });
+            });
+        }
+
+        // Tarayıcı otomatik yükleme istemini yakala, kendi butonumuz için sakla
+        window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            deferredPrompt = e;
+        });
+
+        // Uygulama zaten yüklenmişse bile buton görünür kalsın (kullanıcı isteği)
+        window.addEventListener('appinstalled', function() {
+            deferredPrompt = null;
+        });
+
+        window.installApp = function() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.finally(function() {
+                    deferredPrompt = null;
+                });
+                return;
+            }
+
+            // Tarayıcı yükleme istemi sunmuyorsa (zaten yüklü / desteklenmiyor / iOS)
+            var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+            var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+            if (isStandalone) {
+                if (typeof showToast === 'function') {
+                    showToast('✅ Uygulama zaten cihazına yüklü!');
+                } else {
+                    alert('Uygulama zaten cihazına yüklü!');
+                }
+                return;
+            }
+
+            if (isIOS) {
+                if (typeof showToast === 'function') {
+                    showToast('📲 Yüklemek için: Paylaş ➜ Ana Ekrana Ekle');
+                } else {
+                    alert('Yüklemek için: Paylaş butonuna dokun, sonra "Ana Ekrana Ekle" seçeneğini seç.');
+                }
+                return;
+            }
+
+            if (typeof showToast === 'function') {
+                showToast('📲 Tarayıcı menüsünden "Uygulamayı Yükle" seçeneğini kullanabilirsin');
+            } else {
+                alert('Tarayıcı menüsünden "Uygulamayı Yükle" seçeneğini kullanabilirsin.');
+            }
+        };
     })();
     </script>
 
